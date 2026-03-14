@@ -1,0 +1,15 @@
+{
+  "name": "RawriisSTT defaults — Oculus Touch",
+  "controller_type": "oculus_touch",
+  "description": "Default bindings. Customize in SteamVR > Settings > Controllers > Manage Bindings.",
+  "bindings": {
+    "/actions/main": {
+      "button_click": [
+        {
+          "output": "/actions/main/in/push_to_talk",
+          "input":  "/user/hand/right/input/a/click"
+        }
+      ]
+    }
+  }
+}

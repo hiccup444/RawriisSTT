@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# PyInstaller build artifacts
+dist/
+build/work/
+build/build/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# User settings (stored in AppData at runtime)
+settings.json
+
+# Downloaded models (large binary files — users download via the UI)
+models/
+vosk-model*/
+*.bin
+*.pt
+*.onnx
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code
+.claude/
+
+# Secrets
+*.env
+.env*

@@ -32,7 +32,7 @@ The binding is saved by SteamVR and will persist between sessions.
 
 | Action | Description |
 |---|---|
-| **Push-to-Talk** | Hold to record, release to transcribe |
+| **Push-to-Talk** | Mode selected in-app between toggle and hold functionality. |
 | **Stop TTS** | Immediately stops any playing TTS audio |
 | **Repeat TTS** | Re-sends the last TTS message |
 
@@ -60,7 +60,6 @@ The connection is attempted every few seconds if SteamVR is not yet running. No 
 **Controller input isn't triggering PTT**
 - Confirm the binding was saved in the SteamVR editor.
 - Make sure SteamVR is running - the app logs `SteamVR connected` when the link is established.
-- Check that push-to-talk mode is set to **SteamVR** (not keyboard) on the main window.
 
 **App icon is blank in SteamVR**
 - The icon is loaded from `assets/RawriisIcon.png` at startup. If it's missing, the icon will be blank. Re-download or re-extract the app.

@@ -20,13 +20,7 @@ RawriisSTT listens to your microphone and sends your speech to the VRChat chatbo
 
 ---
 
-## Showcase
-
-<p align="center">
-  <video width="700" controls>
-    <source src="docs/showcase.mp4" type="video/mp4">
-  </video>
-</p>
+https://github.com/user-attachments/assets/8b6ac0c0-d3b5-447b-992b-24fc00504975
 
 ## Documentation
 

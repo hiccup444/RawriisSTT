@@ -102,11 +102,20 @@ class SettingsDialog(QDialog):
         self._chk_on_top.setChecked(self.settings.always_on_top)
         ui_form.addRow(self._chk_on_top)
 
+        self._chk_dark_mode = QCheckBox("Dark mode")
+        self._chk_dark_mode.setChecked(self.settings.dark_mode)
+        self._chk_dark_mode.toggled.connect(self._on_dark_mode_toggled)
+        ui_form.addRow(self._chk_dark_mode)
+
         layout.addWidget(ui_group)
 
         # Sounds group
         sounds_group = QGroupBox("Notification Sounds")
         sounds_form = QFormLayout(sounds_group)
+
+        self._chk_ptt_sound = QCheckBox("Enable PTT sounds")
+        self._chk_ptt_sound.setChecked(self.settings.ptt_sound_enabled)
+        sounds_form.addRow(self._chk_ptt_sound)
 
         self._ptt_volume, vol_lbl = _make_slider(
             0, 100, int(self.settings.ptt_sound_volume * 100),
@@ -350,16 +359,40 @@ class SettingsDialog(QDialog):
         return w
 
     def _make_hotkeys_tab(self) -> QWidget:
+        from PyQt6.QtWidgets import QFrame
+        from .hotkey_capture import HotkeyCaptureDialog
+
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
+        # ── PTT Key ───────────────────────────────────────────────────
         hk_group = QGroupBox("PTT Key")
         hk_form = QFormLayout(hk_group)
 
-        self._ptt_key = QLineEdit(self.settings.ptt_key)
-        self._ptt_key.setPlaceholderText("e.g. F9, ctrl+t, shift+F1")
-        hk_form.addRow("PTT key:", self._ptt_key)
+        self._ptt_key_val: str = self.settings.ptt_key
+        self._lbl_ptt_key = QLabel(HotkeyCaptureDialog.fmt(self._ptt_key_val) or "(unset)")
+        self._lbl_ptt_key.setFrameShape(QFrame.Shape.StyledPanel)
+        self._lbl_ptt_key.setMinimumWidth(90)
+        self._lbl_ptt_key.setStyleSheet("padding: 2px 6px;")
+        btn_set_ptt = QPushButton("Set...")
+        btn_set_ptt.setFixedWidth(55)
+
+        def _set_ptt() -> None:
+            dlg = HotkeyCaptureDialog(current_key=self._ptt_key_val, title="Set PTT Key", parent=self)
+            if dlg.exec() == QDialog.DialogCode.Accepted and dlg.captured_key():
+                self._ptt_key_val = dlg.captured_key()
+                self._lbl_ptt_key.setText(HotkeyCaptureDialog.fmt(self._ptt_key_val))
+
+        btn_set_ptt.clicked.connect(_set_ptt)
+
+        ptt_row = QWidget()
+        ptt_row_layout = QHBoxLayout(ptt_row)
+        ptt_row_layout.setContentsMargins(0, 0, 0, 0)
+        ptt_row_layout.addWidget(self._lbl_ptt_key)
+        ptt_row_layout.addWidget(btn_set_ptt)
+        ptt_row_layout.addStretch()
+        hk_form.addRow("PTT key:", ptt_row)
 
         note = QLabel("Used for both PTT Hold and PTT Toggle modes. Also configurable in the main window.")
         note.setStyleSheet("color: #888888; font-size: 11px;")
@@ -368,25 +401,62 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(hk_group)
 
+        # ── TTS Hotkeys ───────────────────────────────────────────────
         tts_hk_group = QGroupBox("TTS Hotkeys")
         tts_hk_form = QFormLayout(tts_hk_group)
 
-        self._quick_stop_key = QLineEdit(self.settings.tts_quick_stop_key)
-        self._quick_stop_key.setPlaceholderText("Unbound — e.g. F8, ctrl+F4")
-        self._quick_stop_key.setToolTip(
+        def _make_clearable_hotkey_row(current: str, title: str):
+            val_holder = [current]
+            lbl = QLabel(HotkeyCaptureDialog.fmt(current) or "(unbound)")
+            lbl.setFrameShape(QFrame.Shape.StyledPanel)
+            lbl.setMinimumWidth(90)
+            lbl.setStyleSheet("padding: 2px 6px;")
+
+            btn_set = QPushButton("Set...")
+            btn_set.setFixedWidth(55)
+            btn_clear = QPushButton("Clear")
+            btn_clear.setFixedWidth(50)
+
+            def _set():
+                dlg = HotkeyCaptureDialog(current_key=val_holder[0], title=title, parent=self)
+                if dlg.exec() == QDialog.DialogCode.Accepted and dlg.captured_key():
+                    val_holder[0] = dlg.captured_key()
+                    lbl.setText(HotkeyCaptureDialog.fmt(val_holder[0]))
+
+            def _clear():
+                val_holder[0] = ""
+                lbl.setText("(unbound)")
+
+            btn_set.clicked.connect(_set)
+            btn_clear.clicked.connect(_clear)
+
+            row_w = QWidget()
+            row_layout = QHBoxLayout(row_w)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.addWidget(lbl)
+            row_layout.addWidget(btn_set)
+            row_layout.addWidget(btn_clear)
+            row_layout.addStretch()
+            return row_w, val_holder
+
+        self._quick_stop_key_row, self._quick_stop_key_val_holder = _make_clearable_hotkey_row(
+            self.settings.tts_quick_stop_key, "Set Quick Stop TTS Key"
+        )
+        self._quick_stop_key_row.setToolTip(
             "Global hotkey that immediately stops the currently playing TTS message.\n"
             "If Message Queue is enabled the next queued message will play after the configured delay."
         )
-        tts_hk_form.addRow("Quick Stop TTS:", self._quick_stop_key)
+        tts_hk_form.addRow("Quick Stop TTS:", self._quick_stop_key_row)
 
-        self._resend_key = QLineEdit(self.settings.tts_resend_key)
-        self._resend_key.setPlaceholderText("Unbound — e.g. F7, ctrl+F3")
-        self._resend_key.setToolTip(
+        self._resend_key_row, self._resend_key_val_holder = _make_clearable_hotkey_row(
+            self.settings.tts_resend_key, "Set Resend Key"
+        )
+        self._resend_key_row.setToolTip(
             "Global hotkey that re-sends the last transcription to OSC (if enabled) and TTS (if enabled)."
         )
-        tts_hk_form.addRow("Resend Last Transcription:", self._resend_key)
+        tts_hk_form.addRow("Resend Last Transcription:", self._resend_key_row)
 
-        tts_note = QLabel("Leave blank to leave a hotkey unbound.")
+        tts_note = QLabel("Click Set... to assign a key. Click Clear to unbind.")
         tts_note.setStyleSheet("color: #888888; font-size: 11px;")
         tts_note.setWordWrap(True)
         tts_hk_form.addRow(tts_note)
@@ -421,6 +491,11 @@ class SettingsDialog(QDialog):
             if key != model_key:
                 row.set_selected(False)
 
+    def _on_dark_mode_toggled(self, checked: bool) -> None:
+        from PyQt6.QtWidgets import QApplication
+        from .theme import apply_theme
+        apply_theme(QApplication.instance(), checked)
+
     def closeEvent(self, event) -> None:
         """Pressing X on the settings window saves just like clicking OK."""
         self._do_save()
@@ -443,6 +518,7 @@ class SettingsDialog(QDialog):
         s.chatbox_play_notification = self._chk_notification.isChecked()
         s.chatbox_show_keyboard = self._chk_show_keyboard.isChecked()
         s.always_on_top = self._chk_on_top.isChecked()
+        s.dark_mode = self._chk_dark_mode.isChecked()
 
         # STT
         s.whisper_model = self._selected_whisper_model
@@ -464,6 +540,7 @@ class SettingsDialog(QDialog):
         s.max_record_seconds = self._max_record.value()
 
         # General — sounds
+        s.ptt_sound_enabled = self._chk_ptt_sound.isChecked()
         s.ptt_sound_volume = self._ptt_volume.value() / 100.0
 
         # TTS
@@ -479,10 +556,10 @@ class SettingsDialog(QDialog):
         s.tts_smart_split_limit = self._tts_split_limit.value()
 
         # Hotkeys
-        if self._ptt_key.text().strip():
-            s.ptt_key = self._ptt_key.text().strip()
-        s.tts_quick_stop_key = self._quick_stop_key.text().strip()
-        s.tts_resend_key = self._resend_key.text().strip()
+        if self._ptt_key_val:
+            s.ptt_key = self._ptt_key_val
+        s.tts_quick_stop_key = self._quick_stop_key_val_holder[0]
+        s.tts_resend_key = self._resend_key_val_holder[0]
 
         save_settings(s)
 

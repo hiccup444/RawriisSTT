@@ -89,23 +89,23 @@ class SystemSTT(STTEngine):
             if device_index is not None:
                 mic_kwargs["device_index"] = device_index
 
-            while not self._stop_event.is_set():
-                with sr.Microphone(**mic_kwargs) as source:
-                    recognizer.adjust_for_ambient_noise(source, duration=0.3)
+            with sr.Microphone(**mic_kwargs) as source:
+                recognizer.adjust_for_ambient_noise(source, duration=0.3)
+                while not self._stop_event.is_set():
                     try:
                         audio = recognizer.listen(source, timeout=5, phrase_time_limit=15)
                     except sr.WaitTimeoutError:
                         continue
 
-                try:
-                    text = recognizer.recognize_google(audio, language=language)
-                    text = text.strip()
-                    if text and self._callback:
-                        self._callback(STTResult(text=text, is_final=True))
-                except sr.UnknownValueError:
-                    pass  # audio not understood
-                except sr.RequestError as exc:
-                    logger.warning("SystemSTT recognition error: %s", exc)
+                    try:
+                        text = recognizer.recognize_google(audio, language=language)
+                        text = text.strip()
+                        if text and self._callback:
+                            self._callback(STTResult(text=text, is_final=True))
+                    except sr.UnknownValueError:
+                        pass  # audio not understood
+                    except sr.RequestError as exc:
+                        logger.warning("SystemSTT recognition error: %s", exc)
         except Exception as exc:
             logger.exception("SystemSTT capture error: %s", exc)
         finally:

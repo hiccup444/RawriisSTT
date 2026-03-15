@@ -63,6 +63,7 @@ class AppSettings:
     max_record_seconds: int = 10      # Hard cap per PTT press / VAD utterance (8–15)
 
     # Notification sounds
+    ptt_sound_enabled: bool = True
     ptt_sound_volume: float = 0.8     # 0.0–1.0
 
     # TTS (Voice)

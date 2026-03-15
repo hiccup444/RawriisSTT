@@ -173,6 +173,9 @@ class WhisperSTT(STTEngine):
         self._ptt_record_active: bool = False
         self._ptt_flush_requested: bool = False
 
+        # VAD instance — created once at load_model time, reused across captures
+        self._vad = None
+
     @property
     def name(self) -> str:
         return f"Whisper ({self.model_size})"
@@ -263,6 +266,12 @@ class WhisperSTT(STTEngine):
             if msg.get("status") == "loaded":
                 self._is_loaded = True
                 logger.info("Whisper model loaded (subprocess pid=%d).", self._proc.pid)
+                if self.vad_enabled:
+                    try:
+                        import webrtcvad
+                        self._vad = webrtcvad.Vad(self.vad_aggressiveness)
+                    except ImportError:
+                        logger.warning("webrtcvad not available — VAD disabled")
                 return
             elif msg.get("status") == "error":
                 err = msg.get("message", "unknown error")
@@ -368,13 +377,7 @@ class WhisperSTT(STTEngine):
     def _run_capture(self, device_index: Optional[int], language: str) -> None:
         import sounddevice as sd
 
-        vad = None
-        if self.vad_enabled:
-            try:
-                import webrtcvad
-                vad = webrtcvad.Vad(self.vad_aggressiveness)
-            except ImportError:
-                logger.warning("webrtcvad not available — VAD disabled")
+        vad = self._vad  # created once at load_model time
 
         def audio_callback(indata: np.ndarray, frames: int, time_info, status) -> None:
             if status:

@@ -13,8 +13,21 @@ class AudioDevice:
     default_sample_rate: float
 
 
+_device_cache: tuple[List[AudioDevice], List[AudioDevice]] | None = None
+
+
+def invalidate_device_cache() -> None:
+    global _device_cache
+    _device_cache = None
+
+
 def enumerate_all_devices() -> tuple[List[AudioDevice], List[AudioDevice]]:
-    """Return (input_devices, output_devices) from a single sd.query_devices() call."""
+    """Return (input_devices, output_devices) from a single sd.query_devices() call.
+    Result is cached; call invalidate_device_cache() to force a refresh.
+    """
+    global _device_cache
+    if _device_cache is not None:
+        return _device_cache
     try:
         import sounddevice as sd
         inputs: List[AudioDevice] = []
@@ -31,7 +44,8 @@ def enumerate_all_devices() -> tuple[List[AudioDevice], List[AudioDevice]]:
                 inputs.append(entry)
             if dev["max_output_channels"] > 0:
                 outputs.append(entry)
-        return inputs, outputs
+        _device_cache = (inputs, outputs)
+        return _device_cache
     except Exception:
         return [], []
 

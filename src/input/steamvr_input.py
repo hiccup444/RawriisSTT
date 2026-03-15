@@ -29,7 +29,7 @@ from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
-POLL_HZ = 90
+POLL_HZ = 30
 POLL_INTERVAL = 1.0 / POLL_HZ
 RETRY_INTERVAL_S = 5.0
 

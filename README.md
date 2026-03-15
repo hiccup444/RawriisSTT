@@ -12,6 +12,7 @@
   <a href="https://github.com/hiccup444/RawriisSST/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/hiccup444/RawriisSST/total?label=Downloads"></a>
   <a href="https://github.com/hiccup444/RawriisSST/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/hiccup444/RawriisSST?label=Release"></a>
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue">
+  <a href="https://discord.gg/4bG2dEfRSJ"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white"></a>
 </p>
 
 ---
@@ -19,8 +20,6 @@
 RawriisSTT listens to your microphone and sends your speech to the VRChat chatbox over OSC — no subscription required. Designed for minimal performance impact, it uses efficient engines like faster-whisper for quick, local transcription. Choose from multiple local or cloud speech engines, bind push-to-talk to a keyboard key or SteamVR controller button, and optionally have messages read back through the text-to-speech voice of your choice.
 
 ---
-
-[https://github.com/user-attachments/assets/8b6ac0c0-d3b5-447b-992b-24fc00504975](https://github.com/user-attachments/assets/deaae2fa-ed47-4ca5-b076-ed832f73e4df)
 
 ## Documentation
 
@@ -31,6 +30,7 @@ RawriisSTT listens to your microphone and sends your speech to the VRChat chatbo
 | [STT & TTS Engines](docs/engines.md) | Per-engine setup for Whisper, Azure, Vosk, ElevenLabs, Polly |
 | [Custom ElevenLabs Voices](docs/voices.md) | Creating and cloning voices on ElevenLabs to use in the app |
 | [SteamVR Bindings](docs/steamvr.md) | Binding controller buttons to push-to-talk |
+| [Running from Source](docs/from-source.md) | Run the latest code directly without a release build |
 | [Building from Source](docs/building.md) | Compiling your own exe |
 
 ---

@@ -20,7 +20,7 @@ RawriisSTT listens to your microphone and sends your speech to the VRChat chatbo
 
 ---
 
-https://github.com/user-attachments/assets/8b6ac0c0-d3b5-447b-992b-24fc00504975
+[https://github.com/user-attachments/assets/8b6ac0c0-d3b5-447b-992b-24fc00504975](https://github.com/user-attachments/assets/deaae2fa-ed47-4ca5-b076-ed832f73e4df)
 
 ## Documentation
 

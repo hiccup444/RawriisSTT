@@ -18,6 +18,32 @@ from .whisper_models import get_model_path
 
 logger = logging.getLogger(__name__)
 
+
+def _audio_stream_error(exc: Exception) -> RuntimeError:
+    """Convert a PortAudioError into a user-friendly message, with WSL-specific hints."""
+    msg = str(exc)
+    # PaErrorCode -9987 = paTimedOut — stream opened but no data arrived.
+    # On WSL2 this means PulseAudio isn't bridged to Windows audio.
+    if "-9987" in msg or "timed out" in msg.lower():
+        _is_wsl = False
+        try:
+            with open("/proc/version") as _f:
+                _is_wsl = "microsoft" in _f.read().lower()
+        except OSError:
+            pass
+        if _is_wsl:
+            return RuntimeError(
+                "Audio stream timed out (PaErrorCode -9987).\n\n"
+                "WSL2 audio is provided by WSLg — do not install standalone PulseAudio.\n"
+                "If you installed it, remove it and let WSLg handle audio:\n\n"
+                "  sudo apt remove --purge pulseaudio\n\n"
+                "Then open a new WSL terminal and try again.\n"
+                "If the issue persists, set:\n"
+                "  export PULSE_SERVER=unix:/mnt/wslg/runtime-dir/pulse/native"
+            )
+    return RuntimeError(f"Error starting audio stream: {msg}")
+
+
 SAMPLE_RATE = 16000          # Whisper expects 16 kHz mono
 BLOCK_DURATION_MS = 30       # VAD frame size (10 / 20 / 30 ms)
 BLOCK_SIZE = int(SAMPLE_RATE * BLOCK_DURATION_MS / 1000)
@@ -404,7 +430,12 @@ class WhisperSTT(STTEngine):
         if device_index is not None:
             kwargs["device"] = device_index
 
-        with sd.InputStream(**kwargs):
+        try:
+            stream = sd.InputStream(**kwargs)
+        except sd.PortAudioError as exc:
+            raise _audio_stream_error(exc) from exc
+
+        with stream:
             if self.input_mode == "vad":
                 self._loop_vad(vad, language)
             elif self.live_transcribe:

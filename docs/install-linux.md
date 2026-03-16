@@ -126,6 +126,19 @@ SteamVR runs natively on Linux via Steam. RawriisSTT will detect it automaticall
   python3 launcher.py
   ```
 
+**WSL2: `wait timed out [PaErrorCode -9987]` when starting the microphone**
+- WSL2 on Windows 11 includes WSLg, which provides audio automatically. **Do not install standalone `pulseaudio`** — it creates a conflicting server that isn't bridged to Windows audio.
+- If you installed it, remove it:
+  ```bash
+  sudo apt remove --purge pulseaudio
+  ```
+- Open a fresh WSL terminal and try again. If audio still fails, point PortAudio at WSLg's socket:
+  ```bash
+  export PULSE_SERVER=unix:/mnt/wslg/runtime-dir/pulse/native
+  python3 launcher.py
+  ```
+- WSL1 has no audio support at all — upgrade to WSL2.
+
 **`ModuleNotFoundError: No module named 'faster_whisper'` when launching Whisper**
 - This means the Whisper subprocess launched a different Python interpreter than the one with your packages installed. Run the app via `python3 launcher.py` (not `python3 main.py`) to ensure packages are installed into and used from the same interpreter.
 

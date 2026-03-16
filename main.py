@@ -44,6 +44,7 @@ logging.basicConfig(**_log_kwargs)
 # The INFO chatter is harmless; suppress it so it doesn't pollute the log.
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
 

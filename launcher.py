@@ -56,7 +56,18 @@ def _install(pip_spec: str) -> bool:
         [sys.executable, "-m", "pip", "install", "--quiet", pip_spec],
         capture_output=True,
     )
-    return result.returncode == 0
+    if result.returncode == 0:
+        return True
+    # Ubuntu 24.04+ (PEP 668) blocks pip installs into the system Python.
+    # Retry with --break-system-packages so the launcher works out of the box.
+    if b"externally-managed-environment" in result.stderr:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--quiet",
+             "--break-system-packages", pip_spec],
+            capture_output=True,
+        )
+        return result.returncode == 0
+    return False
 
 
 def bootstrap() -> None:

@@ -115,6 +115,17 @@ SteamVR runs natively on Linux via Steam. RawriisSTT will detect it automaticall
 
 ## Troubleshooting
 
+**All packages fail to install on Ubuntu 24.04 (`error: externally-managed-environment`)**
+- Ubuntu 24.04 blocks pip from installing into the system Python by default. The launcher detects this automatically and retries with `--break-system-packages`. If you installed pip manually or are using a non-standard setup, run:
+  ```bash
+  pip install --break-system-packages -r requirements.txt
+  ```
+- Alternatively, use a virtual environment:
+  ```bash
+  python3 -m venv venv && source venv/bin/activate
+  python3 launcher.py
+  ```
+
 **`ModuleNotFoundError: No module named 'faster_whisper'` when launching Whisper**
 - This means the Whisper subprocess launched a different Python interpreter than the one with your packages installed. Run the app via `python3 launcher.py` (not `python3 main.py`) to ensure packages are installed into and used from the same interpreter.
 

@@ -1874,6 +1874,37 @@ class MainWindow(QMainWindow):
         device_index = self._current_device_index()
         language = self._current_language_code()
 
+        # Guard: on Linux (including WSL), sounddevice may have no default device.
+        # Attempting to open the stream returns PortAudioError: Error querying device -1.
+        if device_index is None:
+            import sys as _sys
+            if _sys.platform == "linux":
+                import sounddevice as _sd
+                if _sd.default.device[0] < 0:
+                    _is_wsl = False
+                    try:
+                        with open("/proc/version") as _f:
+                            _is_wsl = "microsoft" in _f.read().lower()
+                    except OSError:
+                        pass
+                    if _is_wsl:
+                        _msg = (
+                            "No audio input device was found.\n\n"
+                            "WSL does not expose audio devices by default.\n"
+                            "Install and start PulseAudio, then restart the app:\n\n"
+                            "  sudo apt install pulseaudio\n"
+                            "  pulseaudio --start"
+                        )
+                    else:
+                        _msg = (
+                            "No audio input device was found.\n\n"
+                            "Check that a microphone is connected and recognised "
+                            "by your system (try: pactl info)."
+                        )
+                    QMessageBox.critical(self, "No Audio Device", _msg)
+                    self._btn_toggle.setChecked(False)
+                    return
+
         # Start PTT handler for all engines when in a PTT mode
         if self.settings.whisper_input_mode in ("ptt_hold", "ptt_toggle"):
             self._ptt_active = False

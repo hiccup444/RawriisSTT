@@ -401,8 +401,9 @@ class WhisperSTT(STTEngine):
     def stop_listening(self) -> None:
         self._stop_event.set()
         self._audio_queue.put(None)  # unblock the queue consumer
-        if self._thread:
-            self._thread.join(timeout=5)
+        # Do NOT join here — the QThread is already waiting on this thread
+        # via start_listening()'s self._thread.join(). Joining again from the
+        # UI thread doubles the wait and causes "not responding" on slow CPUs.
         self._listening = False
         self._ptt_record_active = False
         self._ptt_flush_requested = False

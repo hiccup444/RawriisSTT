@@ -2000,19 +2000,25 @@ class MainWindow(QMainWindow):
         self._live_commit_timer.stop()
         self._live_accumulated = ""
         self._stop_ptt_handler()
-        if self._worker:
-            self._worker.stop()
-        if self._thread:
-            self._thread.quit()
-            self._thread.wait(3000)
-        self._worker = None
-        self._thread = None
-        self._engine = None
+        # Update UI immediately — don't block the event loop waiting for the thread
         self._btn_toggle.setText("Start Listening")
         self._btn_toggle.setChecked(False)
         self._set_status("● Idle", "#888888")
         if self.settings.send_osc:
             self._osc.send_listening(False)
+
+        worker, thread = self._worker, self._thread
+        self._worker = None
+        self._thread = None
+        self._engine = None
+
+        if worker:
+            worker.stop()  # sets stop event + sentinel; returns immediately
+        if thread:
+            thread.quit()
+            thread.finished.connect(thread.deleteLater)
+            if worker:
+                thread.finished.connect(worker.deleteLater)
 
     def _on_manual_send(self) -> None:
         text = self._manual_input.text().strip()

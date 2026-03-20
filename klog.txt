@@ -1,6 +1,0 @@
-16:59:09 [INFO] src.osc.vrchat_osc: OSC client connected to 127.0.0.1:9002
-16:59:10 [INFO] src.input.steamvr_input: SteamVR image_path set to: /home/ultron/Downloads/Testing/test/RawriisSST/RawriisIcon.png (exists=True)
-16:59:10 [INFO] src.input.steamvr_input: SteamVR exe dir resolved to: /home/ultron/Downloads/Testing/test/RawriisSST
-16:59:10 [INFO] src.input.steamvr_input: Patched vrmanifest written
-16:59:10 [INFO] src.input.steamvr_input: SteamVRInputManager started
-16:59:28 [INFO] src.input.steamvr_input: SteamVRInputManager stopped

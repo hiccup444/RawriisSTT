@@ -1,0 +1,20 @@
+{
+  "source": "builtin",
+  "applications": [
+    {
+      "app_key": "com.rawrii.rawriisstt",
+      "launch_type": "binary",
+      "binary_path_windows": "RawriisSTT.exe",
+      "binary_path_linux":   "RawriisSTT",
+      "action_manifest_path": "steamvr/actions.json",
+      "image_path": "../assets/RawriisIcon.png",
+      "is_dashboard_overlay": false,
+      "strings": {
+        "en_us": {
+          "name":        "RawriisSTT",
+          "description": "Speech-to-text bridge for VRChat"
+        }
+      }
+    }
+  ]
+}

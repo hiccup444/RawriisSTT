@@ -101,7 +101,7 @@ def speak_text(
     api_key: str,
     voice_id: str,
     model_id: str,
-    device_indices: List[Optional[int]],
+    device_indices: List[Optional[int | str]],
     volume: float = 0.8,
     stability: float = 0.5,
     similarity_boost: float = 0.75,
@@ -178,9 +178,9 @@ def _speak_worker(
 
         # Pre-query devices and prepare per-device audio
         playback_tasks = []
-        for device_index in device_indices:
+        for device_selector in device_indices:
             try:
-                dev_info = sd.query_devices(device_index)
+                dev_info = sd.query_devices(device_selector)
                 out_ch = int(dev_info["max_output_channels"])
                 if out_ch < 1:
                     continue
@@ -190,9 +190,9 @@ def _speak_worker(
                     play_data = data[:, :out_ch]
                 else:
                     play_data = data
-                playback_tasks.append((play_data, samplerate, device_index))
+                playback_tasks.append((play_data, samplerate, device_selector))
             except Exception as exc:
-                logger.warning("ElevenLabs device prep failed for device %s: %s", device_index, exc)
+                logger.warning("ElevenLabs device prep failed for device %s: %s", device_selector, exc)
 
         # Play to all devices concurrently
         threads = [
@@ -216,7 +216,7 @@ def _speak_worker(
                 pass
 
 
-def _play_on_device(data, samplerate: int, device_index: int) -> None:
+def _play_on_device(data, samplerate: int, device_selector: int | str) -> None:
     """Play *data* on a single output device, blocking until playback completes."""
     import sounddevice as sd
 
@@ -239,10 +239,10 @@ def _play_on_device(data, samplerate: int, device_index: int) -> None:
             samplerate=samplerate,
             channels=data.shape[1],
             dtype="float32",
-            device=device_index,
+            device=device_selector,
             callback=_cb,
             finished_callback=done.set,
         ):
             done.wait(timeout=len(data) / samplerate + 5.0)
     except Exception as exc:
-        logger.warning("ElevenLabs playback failed on device %s: %s", device_index, exc)
+        logger.warning("ElevenLabs playback failed on device %s: %s", device_selector, exc)

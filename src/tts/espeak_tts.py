@@ -143,7 +143,7 @@ def speak_text(
 
 def _speak_worker(
     text: str,
-    device_indices: List[int],
+    device_indices: List[int | str],
     volume: float,
     voice: str,
     speed: int,
@@ -159,12 +159,12 @@ def _speak_worker(
 
         # Pre-match channels for each device
         playback_tasks = []
-        for device_index in device_indices:
+        for device_selector in device_indices:
             try:
-                dev_info = sd.query_devices(device_index)
+                dev_info = sd.query_devices(device_selector)
                 out_channels = int(dev_info["max_output_channels"])
                 if out_channels < 1:
-                    logger.warning("Device %s has no output channels, skipping.", device_index)
+                    logger.warning("Device %s has no output channels, skipping.", device_selector)
                     continue
                 if audio.shape[1] == 1 and out_channels >= 2:
                     play_data = audio.repeat(2, axis=1)
@@ -172,9 +172,9 @@ def _speak_worker(
                     play_data = audio[:, :out_channels]
                 else:
                     play_data = audio
-                playback_tasks.append((play_data, rate, device_index))
+                playback_tasks.append((play_data, rate, device_selector))
             except Exception as exc:
-                logger.warning("eSpeak TTS device prep failed for device %s: %s", device_index, exc)
+                logger.warning("eSpeak TTS device prep failed for device %s: %s", device_selector, exc)
 
         threads = [
             threading.Thread(target=_play_on_device, args=task, daemon=True)
@@ -189,7 +189,7 @@ def _speak_worker(
         logger.exception("eSpeak TTS error: %s", exc)
 
 
-def _play_on_device(data: np.ndarray, samplerate: int, device_index: int) -> None:
+def _play_on_device(data: np.ndarray, samplerate: int, device_selector: int | str) -> None:
     import sounddevice as sd
 
     done = threading.Event()
@@ -211,10 +211,10 @@ def _play_on_device(data: np.ndarray, samplerate: int, device_index: int) -> Non
             samplerate=samplerate,
             channels=data.shape[1],
             dtype="float32",
-            device=device_index,
+            device=device_selector,
             callback=_cb,
             finished_callback=done.set,
         ):
             done.wait(timeout=len(data) / samplerate + 5.0)
     except Exception as exc:
-        logger.warning("eSpeak playback failed on device %s: %s", device_index, exc)
+        logger.warning("eSpeak playback failed on device %s: %s", device_selector, exc)

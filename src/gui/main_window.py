@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QRadioButton,
+    QScrollArea,
     QSizePolicy,
     QSlider,
     QStatusBar,
@@ -360,6 +361,7 @@ class MainWindow(QMainWindow):
         self._engine: Optional[STTEngine] = None
         self._worker: Optional[_STTWorker] = None
         self._thread: Optional[QThread] = None
+        self._stopping_threads: list[tuple[QThread, Optional[_STTWorker]]] = []
         self._devices: list[AudioDevice] = []
 
         # Persistent Whisper engine (model stays loaded between listen sessions)
@@ -419,6 +421,10 @@ class MainWindow(QMainWindow):
         self._save_timer.setInterval(500)
         self._save_timer.timeout.connect(lambda: save_settings(self.settings))
 
+        # Virtual cable refresh state (Linux/PipeWire device publication can be delayed)
+        self._cable_refresh_attempt: int = 0
+        self._cable_refresh_max_attempts: int = 14
+
         self.setWindowTitle("RawriisSTT")
         self.setMinimumWidth(520)
         self.setWindowFlags(
@@ -437,8 +443,15 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ UI build
 
     def _build_ui(self) -> None:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.setCentralWidget(scroll)
+
         central = QWidget()
-        self.setCentralWidget(central)
+        scroll.setWidget(central)
+
         root = QVBoxLayout(central)
         root.setSpacing(8)
         root.setContentsMargins(12, 12, 12, 12)
@@ -521,20 +534,27 @@ class MainWindow(QMainWindow):
                 "Creates a PipeWire/PulseAudio virtual sink named RawriisCable.\n"
                 "Use this as your Output Cable to route TTS audio into VRChat."
             )
+            self._btn_refresh_cable = QPushButton("Refresh Devices")
+            self._btn_refresh_cable.setToolTip(
+                "Re-scan PipeWire/PulseAudio and PortAudio devices to detect a newly created cable."
+            )
             self._lbl_cable_status = QLabel()
             self._lbl_cable_status.setStyleSheet("color: #888888; font-size: 11px;")
             if _vc_exists():
                 self._btn_create_cable.setEnabled(False)
                 self._lbl_cable_status.setText("Virtual cable already exists.")
             self._btn_create_cable.clicked.connect(self._on_create_virtual_cable)
+            self._btn_refresh_cable.clicked.connect(self._on_refresh_virtual_cable)
             cable_btn_row = QHBoxLayout()
             cable_btn_row.addSpacing(94)
             cable_btn_row.addWidget(self._btn_create_cable)
+            cable_btn_row.addWidget(self._btn_refresh_cable)
             cable_btn_row.addWidget(self._lbl_cable_status)
             cable_btn_row.addStretch()
             tts_out_layout.addLayout(cable_btn_row)
         else:
             self._btn_create_cable = None
+            self._btn_refresh_cable = None
             self._lbl_cable_status = None
 
         self._tts_output_widget.setVisible(False)
@@ -981,19 +1001,52 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ Helpers
 
-    def _populate_all_devices(self) -> None:
+    def _restore_combo_selection(self, combo: QComboBox, target_text: str, default_index: int = 0) -> None:
+        target = target_text.strip()
+        if not target:
+            combo.setCurrentIndex(default_index)
+            return
+        target_lower = target.lower()
+        for i in range(combo.count()):
+            text = combo.itemText(i)
+            if text.lower() == target_lower or target_lower in text.lower():
+                combo.setCurrentIndex(i)
+                return
+        combo.setCurrentIndex(default_index)
+
+    def _populate_all_devices(self, *, preserve_selection: bool = True) -> None:
+        selected_input = self.settings.input_device if preserve_selection else ""
+        selected_headphones = self.settings.tts_headphones_device if preserve_selection else ""
+        selected_cable = self.settings.tts_cable_device if preserve_selection else ""
+
         invalidate_device_cache()
         in_devices, out_devices = enumerate_all_devices()
         self._devices = in_devices
+
+        for combo in (self._cmb_device, self._cmb_headphones, self._cmb_cable):
+            combo.blockSignals(True)
+
         self._cmb_device.clear()
         self._cmb_device.addItem("System Default", userData=None)
         for dev in in_devices:
             self._cmb_device.addItem(dev.name, userData=dev.index)
+
         for cmb in (self._cmb_headphones, self._cmb_cable):
             cmb.clear()
             cmb.addItem("None", userData=None)
             for dev in out_devices:
                 cmb.addItem(dev.name, userData=dev.index)
+
+        cable_visible = any(_VC_CABLE_NAME.lower() in dev.name.lower() for dev in out_devices)
+        if _vc_supported() and _vc_exists() and not cable_visible:
+            self._cmb_cable.addItem(_VC_CABLE_NAME, userData=_VC_CABLE_NAME)
+
+        self._restore_combo_selection(self._cmb_device, selected_input, default_index=0)
+        self._restore_combo_selection(self._cmb_headphones, selected_headphones, default_index=0)
+        self._restore_combo_selection(self._cmb_cable, selected_cable, default_index=0)
+
+        for combo in (self._cmb_device, self._cmb_headphones, self._cmb_cable):
+            combo.blockSignals(False)
 
     def _build_voice_engine_model(self) -> QStandardItemModel:
         """Build a QStandardItemModel for the voice engine combo, greying ElevenLabs if no key."""
@@ -1293,7 +1346,7 @@ class MainWindow(QMainWindow):
 
     def _close_whisper(self) -> None:
         if self._worker is not None:
-            self._stop_listening()
+            self._stop_listening(wait_for_thread=True)
         if self._whisper_engine:
             self._whisper_engine.unload_model()
             self._whisper_engine = None
@@ -1517,7 +1570,7 @@ class MainWindow(QMainWindow):
         from ..audio.linux_virtual_cable import create as _vc_create
         # Pa_Terminate() must not be called while a stream is open
         if self._worker is not None:
-            self._stop_listening()
+            self._stop_listening(wait_for_thread=True)
         self._btn_create_cable.setEnabled(False)
         try:
             _vc_create()
@@ -1525,17 +1578,78 @@ class MainWindow(QMainWindow):
             self._btn_create_cable.setEnabled(True)
             QMessageBox.critical(self, "Virtual Cable Error", str(exc))
             return
+
+        self._cable_refresh_attempt = 0
         if self._lbl_cable_status:
-            self._lbl_cable_status.setText("Virtual cable created.")
+            self._lbl_cable_status.setText("Virtual cable created. Waiting for device list refresh...")
         QTimer.singleShot(300, self._refresh_after_cable_create)
 
+    @pyqtSlot()
+    def _on_refresh_virtual_cable(self) -> None:
+        if self._worker is not None:
+            self._stop_listening(wait_for_thread=True)
+        self._cable_refresh_attempt = 0
+        if self._lbl_cable_status:
+            self._lbl_cable_status.setText("Refreshing audio devices...")
+        QTimer.singleShot(0, self._refresh_after_cable_create)
+
     def _refresh_after_cable_create(self) -> None:
-        reinitialize_portaudio()
-        self._populate_all_devices()
+        # If capture thread is still running, retry shortly before touching PortAudio.
+        if self._thread is not None and self._thread.isRunning():
+            self._cable_refresh_attempt += 1
+            if self._cable_refresh_attempt <= self._cable_refresh_max_attempts:
+                if self._lbl_cable_status:
+                    self._lbl_cable_status.setText("Waiting for microphone stream to stop...")
+                QTimer.singleShot(300, self._refresh_after_cable_create)
+            return
+
+        self._cable_refresh_attempt += 1
+        reinit_ok = reinitialize_portaudio(retries=3, settle_delay=0.2)
+        self._populate_all_devices(preserve_selection=True)
+
+        found_index = -1
         for i in range(self._cmb_cable.count()):
-            if _VC_CABLE_NAME in self._cmb_cable.itemText(i):
-                self._cmb_cable.setCurrentIndex(i)
+            if _VC_CABLE_NAME.lower() in self._cmb_cable.itemText(i).lower():
+                found_index = i
                 break
+
+        if found_index >= 0:
+            self._cmb_cable.setCurrentIndex(found_index)
+            if self._btn_create_cable:
+                self._btn_create_cable.setEnabled(False)
+            if self._lbl_cable_status:
+                selected_data = self._cmb_cable.currentData()
+                if isinstance(selected_data, str):
+                    self._lbl_cable_status.setText("Virtual cable available by name. You can use it now.")
+                else:
+                    self._lbl_cable_status.setText("Virtual cable created and detected.")
+            return
+
+        if self._cable_refresh_attempt < self._cable_refresh_max_attempts:
+            delay_ms = min(3000, 300 + self._cable_refresh_attempt * 250)
+            if self._lbl_cable_status:
+                if reinit_ok:
+                    self._lbl_cable_status.setText("Waiting for PipeWire/PulseAudio to publish RawriisCable...")
+                else:
+                    self._lbl_cable_status.setText("PortAudio busy; retrying device refresh...")
+            QTimer.singleShot(delay_ms, self._refresh_after_cable_create)
+            return
+
+        if _vc_exists():
+            for i in range(self._cmb_cable.count()):
+                if _VC_CABLE_NAME.lower() in self._cmb_cable.itemText(i).lower():
+                    self._cmb_cable.setCurrentIndex(i)
+                    break
+            if self._lbl_cable_status:
+                self._lbl_cable_status.setText("Virtual cable exists in PipeWire. Using name-based output until PortAudio catches up.")
+            if self._btn_create_cable:
+                self._btn_create_cable.setEnabled(False)
+            return
+
+        if self._lbl_cable_status:
+            self._lbl_cable_status.setText("Cable refresh failed. Try creating or refreshing again.")
+        if self._btn_create_cable:
+            self._btn_create_cable.setEnabled(True)
 
     @pyqtSlot(int)
     def _on_voice_engine_changed(self, index: int) -> None:
@@ -1886,6 +2000,14 @@ class MainWindow(QMainWindow):
         if self.settings.ptt_sound_enabled:
             self._sound_player.play_stop()
 
+    def _finalize_stopped_thread(self, thread: QThread, worker: Optional[_STTWorker]) -> None:
+        entry = (thread, worker)
+        if entry in self._stopping_threads:
+            self._stopping_threads.remove(entry)
+        thread.deleteLater()
+        if worker:
+            worker.deleteLater()
+
     def _restart_capture(self) -> None:
         """Stop and restart the audio capture thread without touching UI state.
 
@@ -1913,7 +2035,7 @@ class MainWindow(QMainWindow):
         device_index = self._current_device_index()
         language = self._current_language_code()
         self._worker = _STTWorker(self._engine, device_index, language)
-        self._thread = QThread()
+        self._thread = QThread(self)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.result_ready.connect(self._on_result)
@@ -1980,7 +2102,7 @@ class MainWindow(QMainWindow):
             self._start_ptt_handler()
 
         self._worker = _STTWorker(self._engine, device_index, language)
-        self._thread = QThread()
+        self._thread = QThread(self)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.result_ready.connect(self._on_result)
@@ -1994,7 +2116,7 @@ class MainWindow(QMainWindow):
         if self.settings.send_osc:
             self._osc.send_listening(True)
 
-    def _stop_listening(self) -> None:
+    def _stop_listening(self, *, wait_for_thread: bool = False, timeout_ms: int = 3000) -> None:
         self._is_listening = False
         self._ptt_active = False
         self._live_commit_timer.stop()
@@ -2015,10 +2137,15 @@ class MainWindow(QMainWindow):
         if worker:
             worker.stop()  # sets stop event + sentinel; returns immediately
         if thread:
+            self._stopping_threads.append((thread, worker))
+            thread.finished.connect(
+                lambda t=thread, w=worker: self._finalize_stopped_thread(t, w)
+            )
             thread.quit()
-            thread.finished.connect(thread.deleteLater)
-            if worker:
-                thread.finished.connect(worker.deleteLater)
+            if wait_for_thread:
+                thread.wait(timeout_ms)
+                if not thread.isRunning():
+                    self._finalize_stopped_thread(thread, worker)
 
     def _on_manual_send(self) -> None:
         text = self._manual_input.text().strip()

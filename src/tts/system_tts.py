@@ -6,7 +6,7 @@ Uses pyttsx3 which maps to:
   - macOS:   NSSpeechSynthesizer (built-in)
 
 Audio is synthesized to a temporary WAV file and then played through
-each requested sounddevice output device index independently.
+each requested sounddevice output device selector independently.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def speak_text(
     text: str,
-    device_indices: List[Optional[int]],
+    device_indices: List[Optional[int | str]],
     volume: float = 0.8,
 ) -> None:
     """Synthesize *text* and play it through every device in *device_indices*.
@@ -41,7 +41,7 @@ def speak_text(
     thread.start()
 
 
-def _speak_worker(text: str, device_indices: List[int], volume: float) -> None:
+def _speak_worker(text: str, device_indices: List[int | str], volume: float) -> None:
     tmp_path: Optional[str] = None
     try:
         import pyttsx3
@@ -79,9 +79,9 @@ def _speak_worker(text: str, device_indices: List[int], volume: float) -> None:
 
         # Pre-query devices and prepare per-device audio (done on this thread before spawning)
         playback_tasks = []
-        for device_index in device_indices:
+        for device_selector in device_indices:
             try:
-                dev_info = sd.query_devices(device_index)
+                dev_info = sd.query_devices(device_selector)
                 out_channels = int(dev_info["max_output_channels"])
                 if out_channels < 1:
                     logger.warning("Device %s has no output channels, skipping.", device_index)
@@ -92,9 +92,9 @@ def _speak_worker(text: str, device_indices: List[int], volume: float) -> None:
                     play_data = data[:, :out_channels]
                 else:
                     play_data = data
-                playback_tasks.append((play_data, samplerate, device_index))
+                playback_tasks.append((play_data, samplerate, device_selector))
             except Exception as exc:
-                logger.warning("TTS device prep failed for device %s: %s", device_index, exc)
+                logger.warning("TTS device prep failed for device %s: %s", device_selector, exc)
 
         # Play to all devices concurrently
         threads = [
@@ -116,7 +116,7 @@ def _speak_worker(text: str, device_indices: List[int], volume: float) -> None:
                 pass
 
 
-def _play_on_device(data, samplerate: int, device_index: int) -> None:
+def _play_on_device(data, samplerate: int, device_selector: int | str) -> None:
     """Play *data* on a single output device, blocking until playback completes."""
     import sounddevice as sd
 
@@ -139,10 +139,10 @@ def _play_on_device(data, samplerate: int, device_index: int) -> None:
             samplerate=samplerate,
             channels=data.shape[1],
             dtype="float32",
-            device=device_index,
+            device=device_selector,
             callback=_cb,
             finished_callback=done.set,
         ):
             done.wait(timeout=len(data) / samplerate + 5.0)
     except Exception as exc:
-        logger.warning("TTS playback failed on device %s: %s", device_index, exc)
+        logger.warning("TTS playback failed on device %s: %s", device_selector, exc)

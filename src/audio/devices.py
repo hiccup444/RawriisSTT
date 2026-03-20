@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import List
 
 
@@ -68,20 +69,45 @@ def find_device_by_name(name: str) -> AudioDevice | None:
     return None
 
 
-def reinitialize_portaudio() -> None:
+def reinitialize_portaudio(*, retries: int = 5, settle_delay: float = 0.25) -> bool:
     """Force PortAudio to re-scan devices.
 
     Required on Linux after a new PulseAudio/PipeWire sink is created at runtime —
     sounddevice's device list is built once at Pa_Initialize() time and won't see
     new sinks until PortAudio is restarted. Must only be called when no stream is open.
+
+    Returns True when reinitialization succeeds, False otherwise.
     """
     try:
         import sounddevice as _sd
-        _sd._terminate()
-        _sd._initialize()
     except Exception:
-        pass
+        invalidate_device_cache()
+        return False
+
+    for attempt in range(max(1, retries)):
+        try:
+            _sd._terminate()
+        except Exception:
+            # Usually means a stream is still shutting down; retry shortly.
+            if attempt < retries - 1:
+                time.sleep(settle_delay)
+            continue
+
+        if settle_delay > 0:
+            time.sleep(settle_delay)
+
+        try:
+            _sd._initialize()
+            # Warm query to ensure PortAudio sees the latest graph before UI refresh.
+            _sd.query_devices()
+            invalidate_device_cache()
+            return True
+        except Exception:
+            if attempt < retries - 1:
+                time.sleep(settle_delay)
+
     invalidate_device_cache()
+    return False
 
 
 def default_input_device() -> AudioDevice | None:

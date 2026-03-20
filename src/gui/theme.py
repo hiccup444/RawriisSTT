@@ -32,7 +32,8 @@ def _apply_dark(app: QApplication) -> None:
         QGroupBox::title { subcontrol-origin: margin; left: 8px; color: #aaaaaa; }
         QPlainTextEdit { background: #1a1a1a; border: 1px solid #444; border-radius: 3px; }
         QComboBox { background: #2b2b2b; border: 1px solid #555; border-radius: 3px; padding: 2px 6px; }
-        QComboBox QAbstractItemView { background: #2b2b2b; selection-background-color: #3a5a8a; }
+        QComboBox QAbstractItemView { background: #2b2b2b; color: #dcdcdc; selection-background-color: #3a5a8a; selection-color: #ffffff; }
+        QComboBox QAbstractItemView::item:hover { background: #3a5a8a; color: #ffffff; }
         QLineEdit { background: #1e1e1e; border: 1px solid #555; border-radius: 3px; padding: 2px 6px; }
         QPushButton { background: #3a3a3a; border: 1px solid #555; border-radius: 4px; padding: 4px 12px; }
         QPushButton:hover { background: #4a4a4a; }
@@ -75,7 +76,8 @@ def _apply_pink(app: QApplication) -> None:
         QGroupBox::title { subcontrol-origin: margin; left: 8px; color: #ad1457; }
         QPlainTextEdit { background: #fff8fb; border: 1px solid #f8bbd0; border-radius: 3px; }
         QComboBox { background: #fff8fb; border: 1px solid #f8bbd0; border-radius: 3px; padding: 2px 6px; }
-        QComboBox QAbstractItemView { background: #fff8fb; selection-background-color: #f48fb1; }
+        QComboBox QAbstractItemView { background: #fff8fb; color: #3d2030; selection-background-color: #f48fb1; selection-color: #3d2030; }
+        QComboBox QAbstractItemView::item:hover { background: #fce4ec; color: #3d2030; }
         QLineEdit { background: #fff8fb; border: 1px solid #f8bbd0; border-radius: 3px; padding: 2px 6px; }
         QPushButton { background: #f8bbd0; border: 1px solid #f48fb1; border-radius: 4px; padding: 4px 12px; color: #3d2030; }
         QPushButton:hover { background: #fbc8da; }

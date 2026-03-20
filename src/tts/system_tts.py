@@ -84,7 +84,7 @@ def _speak_worker(text: str, device_indices: List[int | str], volume: float) -> 
                 dev_info = sd.query_devices(device_selector)
                 out_channels = int(dev_info["max_output_channels"])
                 if out_channels < 1:
-                    logger.warning("Device %s has no output channels, skipping.", device_index)
+                    logger.warning("Device %s has no output channels, skipping.", device_selector)
                     continue
                 if data.shape[1] == 1 and out_channels >= 2:
                     play_data = data.repeat(2, axis=1)

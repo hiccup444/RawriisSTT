@@ -167,6 +167,11 @@ if IS_WINDOWS and any(entry[0].lower() == "msvcp140.dll" for entry in a.binaries
     a.binaries = [entry for entry in a.binaries if not _is_qt_msvcp140(entry)]
     a.datas = [entry for entry in a.datas if not _is_qt_msvcp140(entry)]
 
+# A third-party ICU DLL can shadow the Windows ICU DLL that Qt6Core expects.
+# The mismatched exports make PyQt6.QtCore fail to import at startup.
+if IS_WINDOWS:
+    a.binaries = [entry for entry in a.binaries if entry[0].lower() != "icuuc.dll"]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

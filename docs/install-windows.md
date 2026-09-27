@@ -12,7 +12,7 @@ A CUDA-capable NVIDIA GPU is optional but recommended if you plan to use Whisper
 
 ## Installation
 
-1. Go to the [Releases page](https://github.com/hiccup444/RawriisSST/releases/latest) and download the latest `RawriisSTT-vX.X.X.zip`.
+1. Go to the [Releases page](https://github.com/hiccup444/RawriisSTT/releases/latest) and download the latest `RawriisSTT-vX.X.X.zip`.
 2. Extract the zip to any folder (e.g. `C:\Programs\RawriisSTT\`).
 3. Run `RawriisSTT.exe`.
 
@@ -25,7 +25,7 @@ No installation wizard, no Python required - everything is bundled.
 RawriisSTT sends text to VRChat over OSC. You need to enable it once inside VRChat:
 
 1. Open the VRChat radial menu.
-2. Go to **Options → OSC → Enable**.
+2. Go to **Options -> OSC -> Enable**.
 
 OSC stays enabled between sessions.
 
@@ -51,14 +51,11 @@ Speak - your words will appear in the VRChat chatbox.
 
 ## GPU Acceleration (Optional)
 
-By default, Whisper runs on CPU. To enable CUDA:
-
-1. Install the [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) matching your driver.
-2. Open a command prompt in the RawriisSTT folder and run:
-   ```
-   pip install torch --index-url https://download.pytorch.org/whl/cu121
-   ```
-3. In **Settings → Speech-to-Text**, set **Whisper Device** to `cuda`.
+By default, Whisper runs on CPU. GPU inference uses CTranslate2 and requires
+compatible NVIDIA cuBLAS and cuDNN libraries. Follow the
+[faster-whisper GPU requirements](https://github.com/SYSTRAN/faster-whisper#gpu)
+for the version installed with the app. Then, in **Settings -> Speech-to-Text**,
+set **Whisper Device** to `cuda`.
 
 ---
 
@@ -71,14 +68,14 @@ If you switch between different setups (e.g. different games, languages, or TTS 
 ## Troubleshooting
 
 **Nothing appears in the VRChat chatbox**
-- Check that OSC is enabled in VRChat (Options → OSC → Enable).
-- Make sure the OSC port in Settings → General matches VRChat's port (default: 9000).
+- Check that OSC is enabled in VRChat (Options -> OSC -> Enable).
+- Make sure the OSC port in Settings -> General matches VRChat's port (default: 9000).
 
 **Whisper says "no model downloaded"**
-- Go to Settings → Speech-to-Text and download a model before clicking Launch Whisper.
+- Go to Settings -> Speech-to-Text and download a model before clicking Launch Whisper.
 
 **Microphone not listed**
-- Make sure Windows has microphone access enabled (Settings → Privacy → Microphone).
+- Make sure Windows has microphone access enabled (Settings -> Privacy -> Microphone).
 - Try unplugging and replugging the device, then restarting the app.
 
 **App won't open / crashes immediately**

@@ -153,6 +153,7 @@ class _STTWorker(QObject):
         self._engine = engine
         self._device_index = device_index
         self._language = language
+        self._stop_requested = False
 
     @pyqtSlot()
     def run(self) -> None:
@@ -165,10 +166,14 @@ class _STTWorker(QObject):
                 device_index=self._device_index,
                 language=self._language,
             )
+            if not self._stop_requested:
+                self.error_occurred.emit("Audio capture stopped unexpectedly. Check the application log for details.")
         except Exception as exc:
-            self.error_occurred.emit(str(exc))
+            if not self._stop_requested:
+                self.error_occurred.emit(str(exc))
 
     def stop(self) -> None:
+        self._stop_requested = True
         self._engine.stop_listening()
 
 
@@ -351,6 +356,7 @@ class MainWindow(QMainWindow):
     # Signals to dispatch SteamVR action callbacks (from background thread) to the GUI thread
     _steamvr_ptt_press_signal   = pyqtSignal()
     _steamvr_ptt_release_signal = pyqtSignal()
+    _keyboard_ptt_toggle_signal = pyqtSignal()
     _steamvr_stop_signal        = pyqtSignal()
     _steamvr_repeat_signal      = pyqtSignal()
 
@@ -405,6 +411,7 @@ class MainWindow(QMainWindow):
         self._steamvr_manager = None
         self._steamvr_ptt_press_signal.connect(self._do_ptt_press)
         self._steamvr_ptt_release_signal.connect(self._do_ptt_release)
+        self._keyboard_ptt_toggle_signal.connect(self._do_ptt_toggle)
         self._steamvr_stop_signal.connect(self._do_quick_stop_tts)
         self._steamvr_repeat_signal.connect(self._do_resend_last_transcription)
 
@@ -735,8 +742,7 @@ class MainWindow(QMainWindow):
             self._radio_vad.setEnabled(False)
             self._radio_vad.setToolTip(
                 "webrtcvad is not installed or failed to import.\n"
-                "Fix: pip install \"setuptools<81\" then pip install webrtcvad\n"
-                "(setuptools>=81 removed pkg_resources which webrtcvad requires)"
+                "Fix: pip install webrtcvad-wheels"
             )
             if self.settings.whisper_input_mode == "vad":
                 self._radio_ptt_hold.setChecked(True)
@@ -1113,7 +1119,7 @@ class MainWindow(QMainWindow):
                 return "Vosk", True
             return "Vosk (no model downloaded)", False
         elif code == "system":
-            return "System Speech", True
+            return "Google Web Speech", True
         return code, True
 
     def _refresh_engine_combo(self) -> None:
@@ -1916,62 +1922,18 @@ class MainWindow(QMainWindow):
             self._ptt_handler.stop()
 
         mode = self.settings.whisper_input_mode
-        engine = self._whisper_engine
-        sounds = self._sound_player
-
         if mode == "ptt_hold":
-            def on_press():
-                if not self._is_listening:
-                    return
-                if self.settings.whisper_input_mode != "ptt_hold":
-                    return  # stale hook from a previous mode — ignore
-                self._live_commit_timer.stop()
-                self._live_accumulated = ""
-                self._ptt_active = True
-                self._ptt_active_since = time.monotonic()
-                if engine:
-                    engine.ptt_press()
-                sounds.play_start()
-
-            def on_release():
-                if not self._is_listening:
-                    return
-                if self.settings.whisper_input_mode != "ptt_hold":
-                    return  # stale hook from a previous mode — ignore
-                self._ptt_active = False
-                if engine:
-                    engine.ptt_release()
-                sounds.play_stop()
-
             self._ptt_handler = PTTHandler(
                 key=self.settings.ptt_key,
                 mode="ptt_hold",
-                on_press=on_press,
-                on_release=on_release,
+                on_press=self._steamvr_ptt_press_signal.emit,
+                on_release=self._steamvr_ptt_release_signal.emit,
             )
         else:  # ptt_toggle
-            def on_press():
-                if not self._is_listening:
-                    return
-                if self.settings.whisper_input_mode != "ptt_toggle":
-                    return  # stale hook from a previous mode — ignore
-                self._ptt_active = not self._ptt_active
-                if self._ptt_active:
-                    self._live_commit_timer.stop()
-                    self._live_accumulated = ""
-                    self._ptt_active_since = time.monotonic()
-                    if engine:
-                        engine.ptt_press()
-                    sounds.play_start()
-                else:
-                    if engine:
-                        engine.ptt_release()
-                    sounds.play_stop()
-
             self._ptt_handler = PTTHandler(
                 key=self.settings.ptt_key,
                 mode="ptt_toggle",
-                on_press=on_press,
+                on_press=self._keyboard_ptt_toggle_signal.emit,
             )
 
         self._ptt_handler.start()
@@ -1982,15 +1944,26 @@ class MainWindow(QMainWindow):
             self._ptt_handler = None
 
     @pyqtSlot()
+    def _do_ptt_toggle(self) -> None:
+        if self.settings.whisper_input_mode != "ptt_toggle":
+            return
+        if self._ptt_active:
+            self._do_ptt_release()
+        else:
+            self._do_ptt_press()
+
+    @pyqtSlot()
     def _do_ptt_press(self) -> None:
         """Start PTT recording — called in the GUI thread (e.g. from a SteamVR signal)."""
-        if not self._is_listening:
+        if not self._is_listening or self.settings.whisper_input_mode == "vad":
             return
+        if self._live_accumulated:
+            self._commit_live_transcript()
         self._live_commit_timer.stop()
         self._live_accumulated = ""
         self._ptt_active = True
         self._ptt_active_since = time.monotonic()
-        if self._whisper_engine:
+        if self._current_engine_code() == "whisper" and self._whisper_engine:
             self._whisper_engine.ptt_press()
         if self.settings.ptt_sound_enabled:
             self._sound_player.play_start()
@@ -1998,10 +1971,10 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def _do_ptt_release(self) -> None:
         """Stop PTT recording — called in the GUI thread (e.g. from a SteamVR signal)."""
-        if not self._is_listening:
+        if not self._is_listening or self.settings.whisper_input_mode == "vad":
             return
         self._ptt_active = False
-        if self._whisper_engine:
+        if self._current_engine_code() == "whisper" and self._whisper_engine:
             self._whisper_engine.ptt_release()
         if self.settings.ptt_sound_enabled:
             self._sound_player.play_stop()
@@ -2125,6 +2098,8 @@ class MainWindow(QMainWindow):
     def _stop_listening(self, *, wait_for_thread: bool = False, timeout_ms: int = 3000) -> None:
         self._is_listening = False
         self._ptt_active = False
+        if self._live_accumulated:
+            self._commit_live_transcript()
         self._live_commit_timer.stop()
         self._live_accumulated = ""
         self._stop_ptt_handler()
@@ -2158,7 +2133,7 @@ class MainWindow(QMainWindow):
         if not text:
             logger.debug("Manual send: empty input, ignoring.")
             return
-        logger.info("Manual send: %r", text)
+        logger.info("Manual send: %d characters", len(text))
         self._manual_input.clear()
         self._on_result(text, is_final=True, manual=True)
 
@@ -2181,7 +2156,7 @@ class MainWindow(QMainWindow):
             self._last_transcription = text
 
             if self.settings.send_osc and self.settings.use_chatbox:
-                if self.settings.ptt_live_transcribe:
+                if self.settings.ptt_live_transcribe and not manual:
                     segment = text.strip()
                     if segment:
                         if self._live_accumulated:
@@ -2199,8 +2174,8 @@ class MainWindow(QMainWindow):
                 else:
                     send_immediately = not self.settings.chatbox_show_keyboard
                     logger.info(
-                        "OSC chatbox send: text=%r send_immediately=%s play_notification=%s",
-                        text, send_immediately, self.settings.chatbox_play_notification,
+                        "OSC chatbox send: length=%d send_immediately=%s play_notification=%s",
+                        len(text), send_immediately, self.settings.chatbox_play_notification,
                     )
                     self._osc.send_chatbox(
                         text,

@@ -1,6 +1,6 @@
 # Building from Source
 
-These instructions are for building the standalone executable yourself. End users should just download from the [Releases page](https://github.com/hiccup444/RawriisSST/releases).
+These instructions are for building the standalone executable yourself. End users should just download from the [Releases page](https://github.com/hiccup444/RawriisSTT/releases).
 
 ---
 
@@ -19,17 +19,15 @@ build\build_windows.bat
 
 This script:
 1. Installs `pyinstaller`, `pillow`, and `openvr` via pip.
-2. Auto-converts `assets/RawriisIcon.png` → `assets/RawriisIcon.ico` using Pillow.
+2. Auto-converts `assets/RawriisIcon.png` -> `assets/RawriisIcon.ico` using Pillow.
 3. Runs PyInstaller with `build/windows.spec`.
 4. Outputs the build to `dist/RawriisSTT/RawriisSTT.exe`.
 
-**CUDA support in the built exe:**
-
-By default the exe bundles CPU-only PyTorch. To include CUDA support:
-```bat
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-```
-Run this before building. Note: CUDA torch is several GB and will significantly increase the output size.
+**CUDA support in the built exe:** faster-whisper uses CTranslate2 for inference,
+so PyTorch is not bundled. GPU use requires compatible NVIDIA cuBLAS and cuDNN
+libraries on the machine running the app. Follow the
+[faster-whisper GPU requirements](https://github.com/SYSTRAN/faster-whisper#gpu)
+for the CTranslate2 version you build with.
 
 ---
 
@@ -53,11 +51,11 @@ After a successful build:
 ```
 dist/
   RawriisSTT/
-    RawriisSTT.exe        ← the executable
-    _internal/            ← bundled Python runtime + dependencies
-      assets/             ← icons and sounds
-      steamvr/            ← SteamVR action manifest and controller bindings
-      openvr/             ← OpenVR Python wrapper
+    RawriisSTT.exe        <- the executable
+    _internal/            <- bundled Python runtime + dependencies
+      assets/             <- icons and sounds
+      steamvr/            <- SteamVR action manifest and controller bindings
+      openvr/             <- OpenVR Python wrapper
       ...
 ```
 

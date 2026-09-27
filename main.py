@@ -12,6 +12,22 @@ import logging
 import sys
 import traceback
 
+if len(sys.argv) > 1 and sys.argv[1] == "--whisper-worker":
+    # The bundled application starts a second copy of itself for Whisper.
+    # Dispatch before importing Qt or opening the GUI log file.
+    from src.stt.whisper_stt import _WORKER_CODE
+    sys.argv = ["-c", *sys.argv[2:]]
+    try:
+        exec(compile(_WORKER_CODE, "<whisper-worker>", "exec"))
+    except Exception:
+        import json
+        import os
+        error = traceback.format_exc()
+        os.write(2, error.encode("utf-8", errors="replace"))
+        os.write(1, json.dumps({"status": "error", "message": error}).encode() + b"\n")
+        raise SystemExit(1)
+    raise SystemExit(0)
+
 _FROZEN = getattr(sys, "frozen", False)
 
 if _FROZEN:

@@ -50,7 +50,7 @@ class VRChatOSC:
             return
         try:
             self._client.send_message(CHATBOX_INPUT, [text, send_immediately, play_notification])
-            logger.debug("Chatbox OSC → %r", text)
+            logger.debug("Chatbox OSC sent: %d characters", len(text))
         except Exception as exc:
             logger.warning("OSC send_chatbox failed: %s", exc)
 

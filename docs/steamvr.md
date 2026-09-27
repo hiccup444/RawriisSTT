@@ -17,7 +17,7 @@ A headset does not need to be connected - RawriisSTT connects to SteamVR in back
 
 1. Launch RawriisSTT.
 2. Launch SteamVR (headset connection is optional).
-3. Open **Settings → Hotkeys** in RawriisSTT.
+3. Open **Settings -> Hotkeys** in RawriisSTT.
 4. Click **Open SteamVR Bindings** - this opens the SteamVR binding editor in your browser. (or open it manually through steam)
 5. In the binding editor, click **Show Other Apps** at the bottom of the app list.
 6. Find **RawriisSTT** and click on it.
@@ -41,7 +41,7 @@ Default bindings are included for the following controller types. SteamVR loads 
 | HP Reverb G2 | Right thumbstick click |
 | Generic / other | Right trigger |
 
-**Stop TTS** and **Repeat TTS** have no default binding — assign them manually in the SteamVR binding editor if needed.
+**Stop TTS** and **Repeat TTS** have no default binding - assign them manually in the SteamVR binding editor if needed.
 
 ---
 

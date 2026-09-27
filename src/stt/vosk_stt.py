@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import queue
 import threading
 from typing import Optional
 
@@ -23,7 +22,6 @@ class VoskSTT(STTEngine):
         self._model = None   # pre-loaded vosk.Model (optional)
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
-        self._audio_queue: queue.Queue[Optional[bytes]] = queue.Queue(maxsize=20)
 
     @property
     def name(self) -> str:
@@ -77,9 +75,6 @@ class VoskSTT(STTEngine):
 
     def stop_listening(self) -> None:
         self._stop_event.set()
-        self._audio_queue.put(None)
-        if self._thread:
-            self._thread.join(timeout=5)
         self._listening = False
 
     def _capture_loop(self, device_index: Optional[int]) -> None:

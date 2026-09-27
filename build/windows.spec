@@ -75,6 +75,7 @@ a = Analysis(
         # PyQt6
         "PyQt6.sip",
         # faster-whisper / ctranslate2
+        "faster_whisper",
         "ctranslate2",
         "ctranslate2.specs",
         "tokenizers",
@@ -115,7 +116,6 @@ a = Analysis(
         "src.stt.base",
         "src.stt.whisper_stt",
         "src.stt.whisper_models",
-        "src.stt._whisper_proc",
         "src.stt.azure_stt",
         "src.stt.vosk_stt",
         "src.stt.vosk_models",
@@ -143,6 +143,11 @@ a = Analysis(
         "tkinter",
         "matplotlib",
         "scipy",
+        # CTranslate2 probes torch if it is installed, but inference does not
+        # use it. Bundling torch can make startup fail on systems without its DLLs.
+        "torch",
+        "torchvision",
+        "torchaudio",
         "PIL",
         "cv2",
     ],
@@ -151,6 +156,16 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# The PyQt6 wheel can include an older MSVCP140.dll beside its Qt binaries.
+# CTranslate2 then loads that copy and crashes during initialization. Use the
+# runtime PyInstaller collected at the bundle root instead.
+if IS_WINDOWS and any(entry[0].lower() == "msvcp140.dll" for entry in a.binaries):
+    def _is_qt_msvcp140(entry):
+        return entry[0].replace("\\", "/").lower() == "pyqt6/qt6/bin/msvcp140.dll"
+
+    a.binaries = [entry for entry in a.binaries if not _is_qt_msvcp140(entry)]
+    a.datas = [entry for entry in a.datas if not _is_qt_msvcp140(entry)]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

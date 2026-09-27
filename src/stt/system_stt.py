@@ -50,7 +50,7 @@ class SystemSTT(STTEngine):
 
     @property
     def name(self) -> str:
-        return "System Speech"
+        return "Google Web Speech"
 
     def start_listening(
         self,
@@ -74,8 +74,6 @@ class SystemSTT(STTEngine):
 
     def stop_listening(self) -> None:
         self._stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=5)
         self._listening = False
 
     def _capture_loop(self, device_index: Optional[int], language: str) -> None:

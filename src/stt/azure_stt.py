@@ -130,6 +130,15 @@ class AzureSTT(STTEngine):
         self._capture_thread.start()
         # Block the calling QThread so results continue to be delivered
         self._capture_thread.join()
+        self._capture_thread = None
+        if self._recognizer:
+            try:
+                self._recognizer.stop_continuous_recognition_async().get()
+            except Exception as exc:
+                logger.warning("Azure stop error: %s", exc)
+            self._recognizer = None
+        self._push_stream = None
+        self._listening = False
 
     def _capture_loop(self, device_index: Optional[int]) -> None:
         """Capture audio from the selected device and push frames to Azure."""
@@ -190,15 +199,5 @@ class AzureSTT(STTEngine):
 
     def stop_listening(self) -> None:
         self._stop_event.set()
-        if self._capture_thread:
-            self._capture_thread.join(timeout=3)
-            self._capture_thread = None
-        if self._recognizer:
-            try:
-                self._recognizer.stop_continuous_recognition_async().get()
-            except Exception as exc:
-                logger.warning("Azure stop error: %s", exc)
-            self._recognizer = None
-        self._push_stream = None
-        self._listening = False
-        logger.info("Azure STT stopped.")
+        # The worker thread closes the SDK after capture exits. Waiting for the
+        # network-backed SDK here would block the GUI thread.

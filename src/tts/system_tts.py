@@ -70,7 +70,7 @@ def _speak_worker(text: str, device_indices: List[int | str], volume: float) -> 
         data, samplerate = sf.read(tmp_path, dtype="float32")
 
         if data.size == 0:
-            logger.warning("TTS engine produced empty audio for: %r", text)
+            logger.warning("TTS engine produced empty audio for %d characters", len(text))
             return
 
         # Ensure 2-D (frames × channels)

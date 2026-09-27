@@ -15,7 +15,7 @@ RawriisSTT runs from source on Linux. There is no pre-built Linux binary - use t
 
 ## System Dependencies
 
-Most packages install automatically via `launcher.py`. However, **PyAudio must be installed from your distro's package manager** on Linux — the pip version links against a different PortAudio build than sounddevice, which causes a crash at runtime. This only affects the **System Speech** and **Vosk** engines; Whisper and Azure work without it.
+Most packages install automatically via `launcher.py`. However, **PyAudio must be installed from your distro's package manager** on Linux - the pip version links against a different PortAudio build than sounddevice, which causes a crash at runtime. This only affects the **Google Web Speech** and **Vosk** engines; Whisper and Azure work without it.
 
 **Debian / Ubuntu / Mint:**
 ```bash
@@ -39,7 +39,7 @@ If you only plan to use Whisper (recommended), you can skip the above entirely.
 ## Running the App
 
 ```bash
-git clone https://github.com/hiccup444/RawriisSST.git
+git clone https://github.com/hiccup444/RawriisSTT.git
 cd RawriisSTT
 python3 launcher.py
 ```
@@ -59,7 +59,7 @@ python3 main.py
 VRChat running under Proton does not auto-detect OSC on Linux. Enable it manually:
 
 1. Open the VRChat radial menu.
-2. Go to **Options → OSC → Enable**.
+2. Go to **Options -> OSC -> Enable**.
 
 Alternatively, add `--enable-sdk-log-levels` to VRChat's launch options in Steam to confirm OSC traffic in the log.
 
@@ -68,7 +68,7 @@ Alternatively, add `--enable-sdk-log-levels` to VRChat's launch options in Steam
 ## First-Time Setup (Whisper - Recommended)
 
 1. Launch the app with `python3 launcher.py`.
-2. Open **Settings → Speech-to-Text**.
+2. Open **Settings -> Speech-to-Text**.
 3. Download a Whisper model (e.g. `base`) from the model list.
 4. Close Settings.
 5. On the main window:
@@ -82,34 +82,23 @@ Alternatively, add `--enable-sdk-log-levels` to VRChat's launch options in Steam
 
 ## GPU Acceleration (Optional)
 
-To run Whisper on an NVIDIA GPU:
-
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-```
-
-Then set **Whisper Device** to `cuda` in Settings → Speech-to-Text.
-
-For AMD GPU support via ROCm, follow the [PyTorch ROCm install guide](https://pytorch.org/get-started/locally/).
+To run Whisper on an NVIDIA GPU, install compatible cuBLAS and cuDNN libraries
+according to the [faster-whisper GPU requirements](https://github.com/SYSTRAN/faster-whisper#gpu)
+for the version installed with the app. Then set **Whisper Device** to `cuda`
+in Settings -> Speech-to-Text.
 
 ---
 
-## VAD & webrtcvad Notes
+## VAD Setup
 
-`webrtcvad` requires a C compiler to build on Linux. If the install fails, the **VAD** input mode option will be greyed out in the app with a tooltip explaining the issue.
-
-To fix it, install build tools and retry:
-
-```bash
-sudo apt install build-essential  # Debian/Ubuntu
-sudo pacman -S base-devel         # Arch
-```
+The app imports `webrtcvad` from the `webrtcvad-wheels` package. If VAD is
+unavailable, install the package in the same Python environment as the app:
 
 ```bash
-pip install webrtcvad
+pip install "webrtcvad-wheels>=2.0.14"
 ```
 
-Then restart the app — VAD will become selectable once the import succeeds.
+Restart the app after installation. VAD becomes selectable once the import succeeds.
 
 ---
 
@@ -117,7 +106,7 @@ Then restart the app — VAD will become selectable once the import succeeds.
 
 When TTS is enabled, you may want to route TTS audio to a virtual cable so VRChat hears it rather than your speakers. On Linux, RawriisSTT can create one for you automatically.
 
-In **Settings → Text-to-Speech**, under **Output Cable**, click **Create Virtual Cable**. This creates a PipeWire/PulseAudio null sink called `RawriisCable` and immediately adds it to the output device list. Select it as your TTS output.
+In **Settings -> Text-to-Speech**, under **Output Cable**, click **Create Virtual Cable**. This creates a PipeWire/PulseAudio null sink called `RawriisCable` and immediately adds it to the output device list. Select it as your TTS output.
 
 **Requirements:** PulseAudio/PipeWire compatibility layer with `pactl` available. This button is hidden on WSL and Windows.
 
@@ -145,7 +134,7 @@ SteamVR runs natively on Linux via Steam. RawriisSTT will detect it automaticall
   ```
 
 **WSL2: `wait timed out [PaErrorCode -9987]` when starting the microphone**
-- WSL2 on Windows 11 includes WSLg, which provides audio automatically. **Do not install standalone `pulseaudio`** — it creates a conflicting server that isn't bridged to Windows audio.
+- WSL2 on Windows 11 includes WSLg, which provides audio automatically. **Do not install standalone `pulseaudio`** - it creates a conflicting server that isn't bridged to Windows audio.
 - If you installed it, remove it:
   ```bash
   sudo apt remove --purge pulseaudio
@@ -155,18 +144,18 @@ SteamVR runs natively on Linux via Steam. RawriisSTT will detect it automaticall
   export PULSE_SERVER=unix:/mnt/wslg/runtime-dir/pulse/native
   python3 launcher.py
   ```
-- WSL1 has no audio support at all — upgrade to WSL2.
+- WSL1 has no audio support at all - upgrade to WSL2.
 
-**VAD mode does nothing / webrtcvad silently fails to import on Python 3.12**
-- `setuptools>=81` removed `pkg_resources`, which `webrtcvad` depends on. The launcher now pins `setuptools<81` automatically. If you installed manually, fix it with:
+**VAD mode is unavailable because webrtcvad fails to import**
+- Install the maintained wheel distribution, which supports current Python versions:
   ```bash
-  pip install "setuptools<81"
+  pip install webrtcvad-wheels
   ```
 
 **`ModuleNotFoundError: No module named 'faster_whisper'` when launching Whisper**
 - This means the Whisper subprocess launched a different Python interpreter than the one with your packages installed. Run the app via `python3 launcher.py` (not `python3 main.py`) to ensure packages are installed into and used from the same interpreter.
 
-**System Speech crashes with `malloc(): unsorted double linked list corrupted`**
+**Google Web Speech crashes with `malloc(): unsorted double linked list corrupted`**
 - This is caused by pip-installed PyAudio conflicting with sounddevice's bundled PortAudio. Install PyAudio from your package manager instead (see System Dependencies above) and do not `pip install PyAudio`.
 
 **`No module named 'PyAudio'` during install**
@@ -185,4 +174,4 @@ SteamVR runs natively on Linux via Steam. RawriisSTT will detect it automaticall
 
 **Nothing appears in VRChat chatbox**
 - Confirm OSC is enabled inside VRChat.
-- VRChat listens on `127.0.0.1:9000` by default - check Settings → General matches.
+- VRChat listens on `127.0.0.1:9000` by default - check Settings -> General matches.

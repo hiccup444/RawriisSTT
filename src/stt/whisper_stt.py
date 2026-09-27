@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import queue
-import shutil
 import subprocess
 import sys
 import threading
@@ -61,69 +59,11 @@ PTT_SPEECH_MARGIN_FRAMES = 5 # Frames kept before first / after last speech fram
 MIN_SPEECH_FRAMES = 3        # Minimum VAD-positive frames required to attempt transcription (~90 ms)
 
 
-def _find_python() -> str:
-    """Return an absolute path to a real Python interpreter.
-
-    sys.executable may point to a PyInstaller bundle or launcher.
-    Search order:
-      1. pyvenv.cfg home (set by venv, points at the base Python directory)
-      2. sys.base_exec_prefix  (base Python install, not the venv)
-      3. sys.exec_prefix       (venv dir — contains Scripts/python.exe on Windows)
-      4. PATH — but skip Windows Store stubs (WindowsApps\\python*.exe)
-      5. sys.executable as last resort
-    """
-    # When running from source, sys.executable IS the interpreter that has all
-    # packages installed (launcher.py used it to pip-install everything).
-    # Only run discovery logic in frozen PyInstaller builds where sys.executable
-    # is the bundle exe, not a Python interpreter.
-    if not getattr(sys, "frozen", False):
-        return sys.executable
-
-    prefixes = [sys.base_exec_prefix, sys.exec_prefix]
-
-    # 1. Read pyvenv.cfg to get the original Python home directory
-    for prefix in prefixes:
-        cfg = os.path.join(prefix, "pyvenv.cfg")
-        if os.path.isfile(cfg):
-            try:
-                with open(cfg) as f:
-                    for line in f:
-                        if line.lower().startswith("home"):
-                            home = line.split("=", 1)[1].strip()
-                            for name in ("python.exe", "python3.exe", "python"):
-                                p = os.path.join(home, name)
-                                if os.path.isfile(p):
-                                    return p
-            except Exception:
-                pass
-
-    # 2. Check well-known locations under base/exec prefix
-    candidates = []
-    for pfx in prefixes:
-        candidates += [
-            os.path.join(pfx, "python.exe"),              # conda / base on Windows
-            os.path.join(pfx, "Scripts", "python.exe"),   # venv Scripts on Windows
-            os.path.join(pfx, "bin", "python3"),           # Linux / macOS
-            os.path.join(pfx, "bin", "python"),
-        ]
-    for path in candidates:
-        if os.path.isfile(path):
-            return path
-
-    # 3. PATH search — skip the Windows Store app-installer stubs
-    for name in ("python3", "python"):
-        found = shutil.which(name)
-        if found and "WindowsApps" not in found:
-            return found
-
-    return sys.executable   # last resort
-
-
 # Inline worker code passed via -c to avoid any file-path / launcher issues.
 # When run as  python -c <_WORKER_CODE> <model_path> <device> <device_index> <banned_words_json>
 # sys.argv is   ["-c", model_path, device, device_index, banned_words_json]
 _WORKER_CODE = """\
-import sys, json
+import sys, json, os
 import numpy as np
 from faster_whisper import WhisperModel
 
@@ -132,8 +72,7 @@ device_index = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 banned_words = json.loads(sys.argv[4]) if len(sys.argv) > 4 else []
 
 def _out(obj):
-    sys.stdout.buffer.write(json.dumps(obj).encode() + b"\\n")
-    sys.stdout.buffer.flush()
+    os.write(1, json.dumps(obj).encode() + b"\\n")
 
 try:
     compute_type = "float16" if dev == "cuda" else "int8"
@@ -170,7 +109,7 @@ if banned_words:
 
 _out({"status": "loaded", "suppressed_count": len(_suppress) - 1})
 
-buf = sys.stdin.buffer
+buf = os.fdopen(0, "rb", buffering=0)
 while True:
     line = buf.readline()
     if not line:
@@ -289,10 +228,13 @@ class WhisperSTT(STTEngine):
             # Prevent Python.exe from opening a visible CMD console window
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
 
-        python_exe = _find_python()
-        logger.info("Whisper subprocess python: %s", python_exe)
+        if getattr(sys, "frozen", False):
+            command = [sys.executable, "--whisper-worker"]
+        else:
+            command = [sys.executable, "-c", _WORKER_CODE]
+        logger.info("Whisper subprocess executable: %s", sys.executable)
         self._proc = subprocess.Popen(
-            [python_exe, "-c", _WORKER_CODE, model_path, self.device,
+            [*command, model_path, self.device,
              str(self.device_index), json.dumps(self.suppress_words)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -424,6 +366,7 @@ class WhisperSTT(STTEngine):
             )
         self._callback = callback
         self._stop_event.clear()
+        self._drain_audio_queue()
         self._ptt_record_active = False
         self._ptt_flush_requested = False
         self._thread = threading.Thread(
@@ -439,10 +382,8 @@ class WhisperSTT(STTEngine):
 
     def stop_listening(self) -> None:
         self._stop_event.set()
-        self._audio_queue.put(None)  # unblock the queue consumer
-        # Do NOT join here — the QThread is already waiting on this thread
-        # via start_listening()'s self._thread.join(). Joining again from the
-        # UI thread doubles the wait and causes "not responding" on slow CPUs.
+        # Capture loops use short queue timeouts. A blocking put here can freeze
+        # the GUI when the bounded audio queue is full.
         self._listening = False
         self._ptt_record_active = False
         self._ptt_flush_requested = False
@@ -531,13 +472,15 @@ class WhisperSTT(STTEngine):
             elif speech_started:
                 silent_frames += 1
                 audio_buffer.append(chunk)
-                if silent_frames >= silence_frames_needed or len(audio_buffer) >= max_frames:
-                    if speech_frame_count >= MIN_SPEECH_FRAMES:
-                        self._transcribe(audio_buffer, language)
-                    audio_buffer = []
-                    silent_frames = 0
-                    speech_started = False
-                    speech_frame_count = 0
+            if speech_started and (
+                silent_frames >= silence_frames_needed or len(audio_buffer) >= max_frames
+            ):
+                if speech_frame_count >= MIN_SPEECH_FRAMES:
+                    self._transcribe(audio_buffer, language)
+                audio_buffer = []
+                silent_frames = 0
+                speech_started = False
+                speech_frame_count = 0
 
     def _loop_ptt_standard(self, vad, language: str) -> None:
         """PTT-gated transcription loop (hold and toggle modes)."""

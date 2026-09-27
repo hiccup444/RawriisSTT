@@ -30,7 +30,7 @@ RawriisSTT supports ElevenLabs as a TTS engine, giving you access to their full 
 >
 > The simplest option is to unrestrict your API key.
 
-4. In RawriisSTT, open **Settings → Text-to-Speech**.
+4. In RawriisSTT, open **Settings -> Text-to-Speech**.
 5. Paste the key into the **API Key** field and click **OK**.
 
 ---
@@ -46,7 +46,7 @@ You have two main options: use a voice from the ElevenLabs Voice Library, or clo
 ElevenLabs has a large public voice library with community-shared voices.
 
 1. In the ElevenLabs dashboard, click **Voices** in the left sidebar.
-2. Click **Voice Library** (or **Add Voice → Voice Library**).
+2. Click **Voice Library** (or **Add Voice -> Voice Library**).
 3. Browse or search for a voice you like. You can preview them before adding.
 4. Click **Add** on the voice you want - it will appear in your voice list.
 
@@ -109,7 +109,7 @@ When you select a voice, RawriisSTT pre-fills these values from that voice's rec
 ## Troubleshooting
 
 **The Refresh button does nothing / voice list is empty**
-- Make sure your API key is saved in **Settings → Text-to-Speech**.
+- Make sure your API key is saved in **Settings -> Text-to-Speech**.
 - Check your internet connection.
 - If you just added a new voice on the website, it may take a moment to appear - try refreshing again.
 
@@ -120,7 +120,7 @@ When you select a voice, RawriisSTT pre-fills these values from that voice's rec
 
 **Output cuts off or sounds garbled**
 - Try switching to a different model - Turbo models prioritize speed and can occasionally have quality tradeoffs on longer phrases.
-- Enable **Smart Split** in Settings → Text-to-Speech so long messages are broken into smaller chunks.
+- Enable **Smart Split** in Settings -> Text-to-Speech so long messages are broken into smaller chunks.
 
 **"No API key set" error when clicking Refresh**
-- The API key must be saved first. Open **Settings → Text-to-Speech**, paste your key, and click **OK** before refreshing.
+- The API key must be saved first. Open **Settings -> Text-to-Speech**, paste your key, and click **OK** before refreshing.

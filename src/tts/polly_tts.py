@@ -143,7 +143,7 @@ def _speak_worker(
 
         data, samplerate = sf.read(tmp_path, dtype="float32")
         if data.size == 0:
-            logger.warning("Polly returned empty audio for: %r", text)
+            logger.warning("Polly returned empty audio for %d characters", len(text))
             return
         if data.ndim == 1:
             data = data.reshape(-1, 1)

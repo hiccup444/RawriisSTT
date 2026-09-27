@@ -204,7 +204,7 @@ class SettingsDialog(QDialog):
         if not cuda_ok:
             cuda_item = self._whisper_device.model().item(1)
             cuda_item.setEnabled(False)
-            cuda_item.setToolTip("CUDA not available — requires an NVIDIA GPU and CUDA toolkit")
+            cuda_item.setToolTip("CUDA not available. Requires an NVIDIA GPU and compatible CUDA libraries")
         saved_device = self.settings.whisper_device
         effective_device = saved_device if cuda_ok or saved_device != "cuda" else "cpu"
         self._whisper_device.setCurrentText(effective_device)
@@ -315,8 +315,7 @@ class SettingsDialog(QDialog):
             self._chk_vad.setEnabled(False)
             vad_group.setToolTip(
                 "webrtcvad is not installed or failed to import.\n"
-                "Fix: pip install \"setuptools<81\" then pip install webrtcvad\n"
-                "(setuptools>=81 removed pkg_resources which webrtcvad requires)"
+                "Fix: pip install webrtcvad-wheels"
             )
         vad_form.addRow(self._chk_vad)
 

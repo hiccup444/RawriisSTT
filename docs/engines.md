@@ -9,7 +9,7 @@
 Local transcription powered by OpenAI's Whisper model via [faster-whisper](https://github.com/SYSTRAN/faster-whisper). No internet or API key required.
 
 **Setup:**
-1. Open **Settings → Speech-to-Text**.
+1. Open **Settings -> Speech-to-Text**.
 2. Under **Whisper Models**, choose a model size and click **Download**.
 3. Set **Whisper Device** to `cpu` (default) or `cuda` if you have an NVIDIA GPU.
 4. Close Settings.
@@ -33,7 +33,7 @@ Larger models require more VRAM/RAM. `base` or `small` are recommended for most 
 Set a specific language on the main window to improve accuracy. Leave it on **Auto** to let Whisper detect the language automatically.
 
 **Whisper Device (CPU / CUDA):**
-The **cuda** option is greyed out if a compatible NVIDIA GPU or CUDA toolkit is not detected. If you have a GPU and it isn't being offered, ensure the correct version of PyTorch with CUDA support is installed (see [GPU Acceleration](install-windows.md) / [Linux GPU](install-linux.md)).
+The **cuda** option is greyed out if the app cannot detect a CUDA-capable NVIDIA GPU. GPU inference also needs compatible cuBLAS and cuDNN libraries. See [Windows GPU setup](install-windows.md) or [Linux GPU setup](install-linux.md).
 
 ---
 
@@ -44,7 +44,7 @@ Cloud-based transcription from Microsoft. Fast and highly accurate. Requires an 
 **Setup:**
 1. Create an [Azure account](https://azure.microsoft.com/free/) and a **Speech** resource.
 2. Copy your **API Key** and **Region** (e.g. `eastus`) from the Azure portal.
-3. Open **Settings → Speech-to-Text** and paste them into the Azure fields.
+3. Open **Settings -> Speech-to-Text** and paste them into the Azure fields.
 4. Select **Azure** as the engine on the main window.
 5. Click **Start Recording**.
 
@@ -57,30 +57,30 @@ No model download required - transcription happens in the cloud.
 Fully offline, lightweight speech recognition. Smaller models than Whisper, lower accuracy, but very fast even on old hardware.
 
 **Setup:**
-1. Open **Settings → Speech-to-Text**.
+1. Open **Settings -> Speech-to-Text**.
 2. Under **Vosk Models**, find a model for your language and click **Download**.
 3. Select **Vosk** as the engine on the main window.
 4. Click **Start Recording**.
 
 ---
 
-### System STT
+### Google Web Speech
 
 Uses the `SpeechRecognition` library, which sends audio to the **Google Web Speech API** by default. Requires an internet connection.
 
-No setup required - select **System STT** on the main window and click **Start Recording**.
+No setup required - select **Google Web Speech** on the main window and click **Start Recording**.
 
 ---
 
 ## Text-to-Speech Engines
 
-TTS reads incoming messages aloud through your audio output device. Enable it on the main window and select an engine in **Settings → Text-to-Speech**.
+TTS reads incoming messages aloud through your audio output device. Enable it on the main window and select an engine in **Settings -> Text-to-Speech**.
 
 ### System TTS
 
 Uses `pyttsx3` (Windows SAPI / Linux eSpeak). No setup, no internet, no API key.
 
-Select **System TTS** in Settings → Text-to-Speech. Voice and speed can be adjusted from the TTS settings.
+Select **System TTS** in Settings -> Text-to-Speech. Voice and speed can be adjusted from the TTS settings.
 
 ---
 
@@ -90,7 +90,7 @@ High-quality AI voices streamed from the ElevenLabs API. Requires an ElevenLabs 
 
 **Setup:**
 1. Sign up at [elevenlabs.io](https://elevenlabs.io) and copy your **API Key** from your profile.
-2. Open **Settings → Text-to-Speech** and paste it into the **ElevenLabs API Key** field.
+2. Open **Settings -> Text-to-Speech** and paste it into the **ElevenLabs API Key** field.
 3. Select **ElevenLabs** as the TTS engine.
 4. Click **Refresh** next to the Voice dropdown to load your voice library, then select a voice.
 
@@ -105,7 +105,7 @@ Neural text-to-speech via AWS. Requires an AWS account.
 **Setup:**
 1. Create an [AWS account](https://aws.amazon.com) and an IAM user with `AmazonPollyReadOnlyAccess` permissions.
 2. Generate an **Access Key ID** and **Secret Access Key** for that user.
-3. Open **Settings → Text-to-Speech** and fill in:
+3. Open **Settings -> Text-to-Speech** and fill in:
    - **Access Key ID**
    - **Secret Access Key**
    - **Region** (e.g. `us-east-1`)
@@ -115,7 +115,7 @@ Neural text-to-speech via AWS. Requires an AWS account.
 
 ## TTS Options
 
-These apply to all TTS engines and are found in **Settings → Text-to-Speech**:
+These apply to all TTS engines and are found in **Settings -> Text-to-Speech**:
 
 | Option | Description |
 |---|---|

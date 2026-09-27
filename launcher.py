@@ -10,6 +10,7 @@ everything and requires no Python installation at all.
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import subprocess
 import sys
@@ -20,10 +21,6 @@ import os
 # (import_name, pip_spec, optional)
 # optional=True means we warn but don't abort if install fails (e.g. platform-specific)
 PACKAGES: list[tuple[str, str, bool]] = [
-    # webrtcvad (and others) depend on pkg_resources from setuptools.
-    # setuptools>=81 removed pkg_resources, breaking imports on Python 3.12+.
-    # Must be first so it's pinned before any package that needs pkg_resources.
-    ("setuptools",                     "setuptools<81",                         False),
     ("PyQt6",                          "PyQt6>=6.6.0",                          False),
     ("faster_whisper",                 "faster-whisper>=1.0.0",                 False),
     ("azure.cognitiveservices.speech", "azure-cognitiveservices-speech>=1.35.0", True),
@@ -36,7 +33,7 @@ PACKAGES: list[tuple[str, str, bool]] = [
     # causing heap corruption (malloc: unsorted double linked list corrupted) at runtime.
     # Users must install python3-pyaudio from their distro's package manager instead.
     *([("pyaudio", "PyAudio>=0.2.14", False)] if sys.platform != "linux" else []),
-    ("webrtcvad",                      "webrtcvad>=2.0.10",                     False),
+    ("webrtcvad",                      "webrtcvad-wheels>=2.0.14",              False),
     ("numpy",                          "numpy>=1.24.0",                         False),
     ("platformdirs",                   "platformdirs>=4.0.0",                   False),
     ("huggingface_hub",                "huggingface_hub>=0.20.0",               False),
@@ -51,6 +48,15 @@ PACKAGES: list[tuple[str, str, bool]] = [
 def _is_importable(name: str) -> bool:
     # Handle dotted names (e.g. azure.cognitiveservices.speech)
     top = name.split(".")[0]
+    if name == "webrtcvad":
+        # The old distribution can be present even when its import fails.
+        try:
+            from importlib.metadata import PackageNotFoundError, version
+            version("webrtcvad-wheels")
+            importlib.import_module("webrtcvad")
+            return True
+        except (ImportError, PackageNotFoundError):
+            return False
     return importlib.util.find_spec(top) is not None
 
 
@@ -77,11 +83,11 @@ def _install(pip_spec: str) -> bool:
 def bootstrap() -> None:
     if sys.platform == "linux" and not _is_importable("pyaudio"):
         print(
-            "Note: System Speech requires python3-pyaudio from your package manager.\n"
+            "Note: Google Web Speech and Vosk require python3-pyaudio from your package manager.\n"
             "  Debian/Ubuntu:  sudo apt install python3-pyaudio\n"
             "  Arch/Manjaro:   sudo pacman -S python-pyaudio\n"
             "  Fedora:         sudo dnf install python3-pyaudio\n"
-            "Other STT engines (Whisper, Vosk, Azure) do not require PyAudio.\n"
+            "Whisper and Azure do not require PyAudio.\n"
         )
 
     missing_required: list[str] = []
